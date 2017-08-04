@@ -26,7 +26,7 @@ from astropy import units as u
 
 #gz2sample uses WMAP cosmology of H0 = 71.8, Ωm =  0.273, ΩΛ = 0.727 https://arxiv.org/pdf/1308.3496v2.pdf
 
-from densityplot import *
+
 
 
 def open_fits_arrays(fits_file,variable_names,column_header_names,dictionary):
@@ -121,7 +121,7 @@ def Galaxy_image_star_and_gas_maps(the_dict,index_array,savepath):
 plt.close('all')
 
 #Opening the fits files
-ancillary = fits.open('MaNGA_targets_extNSA_tiled_ancillary_lambda_r_GZ.fits')
+ancillary = fits.open('MaNGA_targets_extNSA_tiled_ancillary_lambda_r_GZ_plus_my_weights9.fits')
 ancillary_data = ancillary[1].data
 aggregated = fits.open('gzsamplezooMainSpeczMANGAMeta_mpl5weights2_lambda2.fits')
 aggregated_data = aggregated[1].data
@@ -132,8 +132,8 @@ column_headers_stars = ['Regular Rotation_2','Kinematically Distinct Core_2','Co
 variables_gas = ['regular rotation (gas)','kinematically distinct core (gas)','counter rotating core (gas)','kinematic twist (gas)','double peak (gas)','non rotating (gas)','disturbed (gas)','not enough data present cant tell (gas)']
 column_headers_gas = ['Regular Rotation_2a','Kinematically Distinct Core_2a','Counter-Rotating Core_2a','Kinematic Twist_2a','Double Peak_2a','Non-Rotating_2a','Disturbed_2a',"Not enough data present/ can't tell/ No gas detected"]
 #Setting up for values to be appended onto both dictionaries
-other_variables = ['volume weights','mass','vote fraction for features or disk','lambda r','ellipticity','petromag Mg','petromag Mr','FvS','no bulge','noticeable bulge','obvious bulge','dominant bulge','mangaid','plateifu']
-other_column_headers = ['ESWEIGHT','nsa_elpetro_mass','t01_smooth_or_features_a02_features_or_disk_debiased','lambda_r','ECOOELL','PETROMAG_MG','PETROMAG_MR','FvS','t05_bulge_prominence_a10_no_bulge_debiased ','t05_bulge_prominence_a11_just_noticeable_debiased ','t05_bulge_prominence_a12_obvious_debiased','t05_bulge_prominence_a13_dominant_debiased  ','mangaid_2a','plateifu']
+other_variables = ['volume weights','mass','vote fraction for features or disk','lambda r','ellipticity','petromag Mg','petromag Mr','FvS','no bulge','noticeable bulge','obvious bulge','dominant bulge','bar flag','no edge on fraction','bar fraction','mangaid','plateifu']
+other_column_headers = ['ESWEIGHT','nsa_elpetro_mass','t01_smooth_or_features_a02_features_or_disk_debiased','lambda_r','ECOOELL','PETROMAG_MG','PETROMAG_MR','FvS','t05_bulge_prominence_a10_no_bulge_debiased ','t05_bulge_prominence_a11_just_noticeable_debiased ','t05_bulge_prominence_a12_obvious_debiased','t05_bulge_prominence_a13_dominant_debiased  ', 't03_bar_a06_bar_flag','t02_edgeon_a05_no_debiased','t03_bar_a06_bar_debiased','mangaid_2a','plateifu']
 number_of_classifications = aggregated_data.field('Number of Classifications')
 variabe_names = ['regular rotation','kinematically distinct core','counter rotating core', 'kinematic twist','double peak', 'non-rotating', 'disturbed',"not enoguh data present/can't tell"]
 #Creating the dictionaries
@@ -236,16 +236,58 @@ ax[2].set_title('High mass ($10^{10.3}M_{\odot} \leq M$)')
 
 
 
-fig3, ax = plt.subplots(2, sharex=True)
-variable_stars_1 = variables_stars_all[2]
-variable_gas_1 = variables_gas_all[2]
-indices_allowed_stars = np.where(stars_dict_frac[variables_stars_all[10]] >0.5)[0]
-indices_allowed_gas = np.where(gas_dict_frac[variables_gas_all[10]] > 0.5)[0]
-ax[0].hist(stars_dict_frac[variable_stars_1][indices_allowed_stars], weights=stars_dict_frac['volume weights'][indices_allowed_stars], color=  'r', range=(0,1))
-ax[1].hist(gas_dict_frac[variable_gas_1][indices_allowed_gas], weights=gas_dict_frac['volume weights'][indices_allowed_gas],color =  'r', range=(0,1))
-fig3.text(0.04,0.5,'frequency of galaxies with '+variables_gas_all[10]+' > 0.5',va='center',rotation='vertical')
-ax[0].set_xlabel(variable_stars_1)
-ax[1].set_xlabel(variable_gas_1)
+fig3, ax = plt.subplots(2,figsize = (9,12))
+mass = (ancillary_data.field('NSA_ELPETRO_MASS'))
+ancil_weights = ancillary_data.field('ESWEIGHT')
+my_weights = ancillary_data.field('volume sample weights')
+primary_index = np.where((ancillary_data.field('MANGA_TARGET1')&1024) != 0)[0]
+mass_prim = mass[primary_index]
+ancil_weights_prim = ancil_weights[primary_index]
+my_weights_prim = my_weights[primary_index]
+
+sec_index = np.where((ancillary_data.field('MANGA_TARGET1')&2048) != 0)[0]
+ce_index = np.where((ancillary_data.field('MANGA_TARGET1')&4096)!=0)[0]
+all_index = np.append(np.append(primary_index,ce_index),sec_index)
+mass_sec = mass[all_index]
+ancil_weights_sec = ancil_weights[all_index]
+my_weights_sec = my_weights[all_index]
+
+
+
+
+#no_ancil_weights = np.where(ancil_weights<-900)[0]
+#ancil_weights = np.delete(ancil_weights,no_ancil_weights,axis=None)
+#mass = np.delete(mass,no_ancil_weights,axis=None)
+#my_weights = np.delete(my_weights,no_ancil_weights,axis=None)
+#
+#mass_mask = np.isnan(mass)
+#mass = mass[~mass_mask]
+#ancil_weights = ancil_weights[~mass_mask]
+#my_weights = my_weights[~mass_mask]
+
+ax[0].hist(mass, color=  'r')
+ax[1].hist(mass, weights=ancil_weights,color =  'r')
+ax[0].set_xlabel('$log_{10}(mass)$', fontsize = 16)
+ax[1].set_xlabel('$log_{10}(mass)$', fontsize = 16)
+ax[0].set_ylabel('frequency', fontsize = 14)
+ax[1].set_ylabel('weighted frequency', fontsize =14)
+fig3.tight_layout()
+fig3.savefig('/home/icgguest/Project/final figures/mass hists')
+
+figtest, ax = plt.subplots()
+
+
+area_weight = np.sum(ancil_weights_sec)/len(mass_sec)
+my_area_weights = np.sum(ancil_weights_sec)/np.sum(my_weights_sec)
+unweighted = ax.hist(mass_sec, weights = np.ones(len(mass_sec))*area_weight, histtype = 'step', color='r',label='Not Weighted')
+weighted = ax.hist(mass_sec, weights = ancil_weights_sec, histtype = 'step', color = 'b',label='Weighted')
+my_weights_hist = ax.hist(mass_sec, weights=my_weights_sec*my_area_weights, histtype ='step', color='k', label='My Weights')
+ax.set_xlabel('$\log _{10}(\mathrm{mass})$', fontsize=16)
+ax.set_ylabel('Frequency', fontsize = 14)
+ax.legend()
+figtest.tight_layout()
+ax.set_title('Primary')
+figtest.savefig('/home/icgguest/Project/final figures/mass hist comparison with my weights all')
 
 
 
@@ -318,8 +360,56 @@ ax.set_ylim([0,np.nanmax(stars_dict_frac['lambda r'][stars_index]+0.05)])
 fig6.tight_layout()
 fig6.savefig('/home/icgguest/Project/final figures/slow_features')
 
+fig7, ax = plt.subplots()
+#kinematic_twist_mask_bar = gas_dict_frac['vote fraction for features or disk'] > 0.5 and gas_dict_frac['no edge on fraction'] > 0.5 and gas_dict_frac['bar fraction'] >0.5
+#kinematic_twist_mask_not_bar = gas_dict_frac['vote fraction for features or disk'] > 0.5 and gas_dict_frac['no edge on fraction'] > 0.5 and gas_dict_frac['bar fraction'] <=0.5
+bar_twist_or_not = 0
+not_bar_twist_or_not = 0
+bar_count = 0
+not_bar_count = 0
+for pie in range(len(gas_dict_frac['kinematic twist (gas)'])):
+    if gas_dict_frac['vote fraction for features or disk'][pie] > 0.5:
+        if gas_dict_frac['no edge on fraction'][pie] > 0.5:
+            if gas_dict_frac['bar fraction'][pie] > 0.5:
+                bar_count +=1
+                if (gas_dict_frac['kinematic twist (gas)'])[pie] > 0.5:
+                    bar_twist_or_not += 1
+            elif gas_dict_frac['bar fraction'][pie] < 0.2:
+                not_bar_count += 1
+                if (gas_dict_frac['kinematic twist (gas)'])[pie] > 0.5:
+                    not_bar_twist_or_not +=1
+bar_twist_perc = np.array([bar_twist_or_not/bar_count,np.sqrt(bar_twist_or_not)/bar_count])*100
+ar_twist_perc = np.array([not_bar_twist_or_not/not_bar_count,np.sqrt(not_bar_twist_or_not)/not_bar_count])*100
+print('Bars with twists: '+str(bar_twist_perc[0])+'%'+'+-'+str(bar_twist_perc[1])+'%')
+print('Non-bars with twists: '+str(ar_twist_perc[0])+'%'+'+-'+str(ar_twist_perc[1])+'%')
+
+primary_only_weights = ancillary_data.field('SWEIGHT')[sec_index]
+ESW = ancillary_data.field('ESWEIGHT')[sec_index]
+my_prim_calc_weights = 1e6/(cosmo.comoving_volume(ancillary_data.field('SZMAX')[sec_index])-cosmo.comoving_volume(ancillary_data.field('SZMIN')[sec_index])*0.769)
+area_norm = np.sum(primary_only_weights)/np.sum(my_prim_calc_weights)
+area_norm1 = np.sum(primary_only_weights)/np.sum(ESW)
+mass_sec = (ancillary_data.field('NSA_ELPETRO_MASS'))[sec_index]
+figh, ax = plt.subplots()
+ax.hist(mass_sec,weights=primary_only_weights,histtype='step',color='b',label='Weights')
+ax.hist(mass_sec,weights=my_prim_calc_weights*area_norm,histtype='step',color='k',label='My Weights')
+#ax.hist(mass_sec,weights=ESW*area_norm1,histtype='step',color='r',label='My weights from pplus')
+ax.set_xlabel('$\log _{10}(\mathrm{mass})$', fontsize=16)
+ax.set_ylabel('Frequency', fontsize = 14)
+ax.legend()
+figh.tight_layout()
+#ax.set_title('Primary only sample')
+#figh.savefig('/home/icgguest/Project/final figures/primary comp')
+
+figg, ax = plt.subplots(1,2,figsize=(12,6))
+ax[0].plot(ancillary_data.field('ZMIN')[primary_index],ancillary_data.field('EZMIN')[primary_index],'r.')
+ax[1].plot(ancillary_data.field('ZMAX')[primary_index],ancillary_data.field('EZMAX')[primary_index],'r.')
+ax[0].set_xlabel('ZMIN')
+ax[0].set_ylabel('EZMIN')
+ax[1].set_xlabel('ZMAX')
+ax[1].set_ylabel('EZMAX')
 
 
-savepath = '/home/icgguest/Project/data/Galaxy images and maps/slow features/'
-Galaxy_image_star_and_gas_maps(stars_dict_frac,stars_index,savepath)
+
+#savepath = '/home/icgguest/Project/data/Galaxy images and maps/slow features/'
+#Galaxy_image_star_and_gas_maps(stars_dict_frac,stars_index,savepath)
 
